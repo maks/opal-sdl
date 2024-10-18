@@ -60,6 +60,7 @@ const uint16_t Opal::LogSinTable[0x100] = {
 //==================================================================================================
 #if 0
 #include <math.h>
+#include <stdio.h>
 
 void GenerateTables() {
 
@@ -135,14 +136,15 @@ void Opal::Init(int sample_rate) {
       0, 1, 2, 6, 7, 8, 12, 13, 14, 18, 19, 20, 24, 25, 26, 30, 31, 32,
   };
 
-  for (int i = 0; i < NumChannels; i++) {
-    Channel *chan = &Chan[i];
-    int op = chan_ops[i];
-    if (i < 3 || (i >= 9 && i < 12))
-      chan->SetOperators(&Op[op], &Op[op + 3], &Op[op + 6], &Op[op + 9]);
-    else
-      chan->SetOperators(&Op[op], &Op[op + 3], 0, 0);
-  }
+  // for (int i = 0; i < NumChannels; i++) {
+  //   Channel *chan = &Chan[i];
+  //   int op = chan_ops[i];
+  //   if (i < 3 || (i >= 9 && i < 12))
+  //     chan->SetOperators(&Op[op], &Op[op + 3], &Op[op + 6], &Op[op + 9]);
+  //   else
+  //     chan->SetOperators(&Op[op], &Op[op + 3], 0, 0);
+  // }
+  (&Chan[0])->SetOperators(&Op[0], &Op[1], 0, 0);
 
   // Initialise the operator rate data.  We can't do this in the Operator
   // constructor as it relies on referencing the master and channel objects
@@ -415,15 +417,14 @@ void Opal::Output(int16_t &left, int16_t &right) {
   int32_t leftmix = 0, rightmix = 0;
 
   // Sum the output of each channel
-  //  for (int i = 0; i < NumChannels; i++) {
+  for (int i = 0; i < NumChannels; i++) {
 
-  int16_t chanleft, chanright;
-  //    Chan[i].Output(chanleft, chanright);
-  Chan[0].Output(chanleft, chanright);
+    int16_t chanleft, chanright;
+    Chan[i].Output(chanleft, chanright);
 
-  leftmix += chanleft;
-  rightmix += chanright;
-  //  }
+    leftmix += chanleft;
+    rightmix += chanright;
+  }
 
   // Clamp
   if (leftmix < -0x8000)
@@ -528,7 +529,6 @@ void Opal::Channel::Output(int16_t &left, int16_t &right) {
     if (ChannelPair->GetModulationType() == 0) {
 
       if (ModulationType == 0) {
-
         // feedback -> modulator -> modulator -> modulator -> carrier
         out =
             Op[0]->Output(KeyScaleNumber, PhaseStep, vibrato, 0, FeedbackShift);
@@ -572,13 +572,11 @@ void Opal::Channel::Output(int16_t &left, int16_t &right) {
 
     // Standard 2-op mode
     if (ModulationType == 0) {
-
       // Frequency modulation (well, phase modulation technically)
       out = Op[0]->Output(KeyScaleNumber, PhaseStep, vibrato, 0, FeedbackShift);
       out = Op[1]->Output(KeyScaleNumber, PhaseStep, vibrato, out, 0);
 
     } else {
-
       // Additive
       out = Op[0]->Output(KeyScaleNumber, PhaseStep, vibrato, 0, FeedbackShift);
       out += Op[1]->Output(KeyScaleNumber, PhaseStep, vibrato);

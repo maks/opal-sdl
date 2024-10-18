@@ -36,8 +36,8 @@ class Opal {
   // Various constants
   enum {
     OPL3SampleRate = 49716,
-    NumChannels = 18,
-    NumOperators = 36,
+    NumChannels = 1,
+    NumOperators = 2,
 
     EnvOff = -1,
     EnvAtt,

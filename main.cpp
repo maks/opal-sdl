@@ -14,6 +14,8 @@ int8_t *audio_buffer;
 
 static Opal opl_(SAMPLE_RATE);
 
+int algorithm_ = 0;
+
 void oscillator_callback(void *userdata, uint8_t *byteStream,
                          int byteStreamLen) {
   // clear buffer
@@ -72,14 +74,25 @@ static void handle_note_keys(SDL_Keysym *keysym) {
   case SDLK_l:
     new_note = startMidiNote + 8;
     break;
+  case SDLK_0:
+    algorithm_ = 0;
+    break;
+  case SDLK_1:
+    algorithm_ = 1;
   default:
     new_note = 0;
     break;
   }
 
+  // channel wide settings
+  // enable left/right output (D4, D5) & set algorithm D0
+  // for now only 2 op so just Additive or FM
+  opl_.Port(0xC0, 0x30 + algorithm_);
+
   // set note in OPAL
   u_char block = new_note / 12;
   u_int16_t fnum = noteFNumbers[new_note % 12];
+  printf("ALGORITHM:%d\n", algorithm_);
   printf("PLAY %d block[%d] fnum:%d\n", new_note, block, fnum);
 
   u_char areg = fnum & 0xFF; // truncate to lowest 8 bytes
@@ -99,53 +112,36 @@ static void handle_key_down(SDL_Keysym *keysym) { handle_note_keys(keysym); }
 
 int main(int argc, char const *argv[]) {
 
-  opl_.Port(0x01, 0x20);
+  // opl_.Port(0x01, 0x20);
+
+  uint8_t op1TremVibSusKSR_ = 0x0;
+  uint8_t op2TremVibSusKSR_ = 0x0;
+
+  // multiplier is only 4bits
+  uint8_t freqMultOp1 = 0x3 & 0xF;
+  uint8_t freqMultOp2 = 0x0 & 0xF;
+
+  uint8_t tremVibSusKSR1 = op1TremVibSusKSR_;
+  uint8_t tremVibSusKSR2 = op2TremVibSusKSR_;
+
+  uint8_t tvskmOp1 = (tremVibSusKSR1 << 4) + freqMultOp1;
+  uint8_t tvskmOp2 = (tremVibSusKSR2 << 4) + freqMultOp2;
 
   // Tremolo/Vibrato/Sustain/KSR/Multiplication
-  opl_.Port(0x20, 0x01);
-  opl_.Port(0x23, 0x01);
-  opl_.Port(0x28, 0x00);
-  opl_.Port(0x2B, 0x00);
+  opl_.Port(0x20, tvskmOp1);
+  opl_.Port(0x21, tvskmOp2);
   // Waveform
-  opl_.Port(0xE0, 0x00); // 0 = pure sine
-  opl_.Port(0xE3, 0x00);
-  opl_.Port(0xE8, 0x02);
-  opl_.Port(0xEB, 0x02);
+  opl_.Port(0xE0, 0x04); // 0 = pure sine
+  opl_.Port(0xE1, 0x00);
   // Key Scale Level/Output Level
   opl_.Port(0x40, 0x0F);
-  opl_.Port(0x43, 0x00);
-  opl_.Port(0x48, 0x5c);
-  opl_.Port(0x4B, 0x02);
+  opl_.Port(0x41, 0x00);
   // Attack Rate/Decay Rate
-  opl_.Port(0x60, 0xf0);
-  opl_.Port(0x63, 0xf0);
-  opl_.Port(0x68, 0x82);
-  opl_.Port(0x6B, 0xf0);
+  opl_.Port(0x60, 0x50);
+  opl_.Port(0x61, 0x50);
   // Sustain Level/Release Rate
-  opl_.Port(0x80, 0xff);
-  opl_.Port(0x83, 0xff);
-  opl_.Port(0x88, 0xbc);
-  opl_.Port(0x8B, 0xbc);
-
-  // enable left/right only for channel0
-  opl_.Port(0xc0, 0x31);
-  opl_.Port(0xc1, 0x30);
-  opl_.Port(0xc2, 0x00);
-  opl_.Port(0xc3, 0x00);
-  opl_.Port(0xc4, 0x00);
-  opl_.Port(0xc5, 0x00);
-  opl_.Port(0xc6, 0x00);
-  opl_.Port(0xc7, 0x00);
-  opl_.Port(0xc8, 0x00);
-  opl_.Port(0x1c0, 0x00);
-  opl_.Port(0x1c1, 0x00);
-  opl_.Port(0x1c2, 0x00);
-  opl_.Port(0x1c3, 0x00);
-  opl_.Port(0x1c4, 0x00);
-  opl_.Port(0x1c5, 0x00);
-  opl_.Port(0x1c6, 0x00);
-  opl_.Port(0x1c7, 0x00);
-  opl_.Port(0x1c8, 0x00);
+  opl_.Port(0x80, 0x03);
+  opl_.Port(0x81, 0x03);
 
   printf("OPAL SDL TEST \n");
 
