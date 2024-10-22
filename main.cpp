@@ -42,6 +42,8 @@ const int startMidiNote = 60;
 static const unsigned int noteFNumbers[] = {342, 363, 385, 408, 432, 458,
                                             485, 514, 544, 577, 611, 647};
 
+static u_char breg;
+
 static void handle_note_keys(SDL_Keysym *keysym) {
   /* change note or octave depending on which key is pressed */
   int new_note = startMidiNote;
@@ -97,7 +99,7 @@ static void handle_note_keys(SDL_Keysym *keysym) {
 
   u_char areg = fnum & 0xFF; // truncate to lowest 8 bytes
   //        note on  block in d2,3,4  high 2 bits of fnum in D0,D1
-  u_char breg = 0x20 | (block << 2) | (fnum >> 8);
+  breg = 0x20 | (block << 2) | (fnum >> 8);
 
   // Note on with the fnumber that matches the give midi note
   opl_.Port(FREQ_BASE_REG, areg);
@@ -112,14 +114,12 @@ static void handle_key_down(SDL_Keysym *keysym) { handle_note_keys(keysym); }
 
 int main(int argc, char const *argv[]) {
 
-  // opl_.Port(0x01, 0x20);
-
-  uint8_t op1TremVibSusKSR_ = 0x0;
+  uint8_t op1TremVibSusKSR_ = 0x1;
   uint8_t op2TremVibSusKSR_ = 0x0;
 
   // multiplier is only 4bits
-  uint8_t freqMultOp1 = 0x3 & 0xF;
-  uint8_t freqMultOp2 = 0x0 & 0xF;
+  uint8_t freqMultOp1 = 0x7 & 0xF;
+  uint8_t freqMultOp2 = 0x1 & 0xF;
 
   uint8_t tremVibSusKSR1 = op1TremVibSusKSR_;
   uint8_t tremVibSusKSR2 = op2TremVibSusKSR_;
@@ -131,17 +131,17 @@ int main(int argc, char const *argv[]) {
   opl_.Port(0x20, tvskmOp1);
   opl_.Port(0x21, tvskmOp2);
   // Waveform
-  opl_.Port(0xE0, 0x04); // 0 = pure sine
+  opl_.Port(0xE0, 0x00); // 0 = pure sine
   opl_.Port(0xE1, 0x00);
   // Key Scale Level/Output Level
-  opl_.Port(0x40, 0x0F);
+  opl_.Port(0x40, 0x21);
   opl_.Port(0x41, 0x00);
   // Attack Rate/Decay Rate
-  opl_.Port(0x60, 0x50);
-  opl_.Port(0x61, 0x50);
+  opl_.Port(0x60, 0x56);
+  opl_.Port(0x61, 0xF6);
   // Sustain Level/Release Rate
-  opl_.Port(0x80, 0x03);
-  opl_.Port(0x81, 0x03);
+  opl_.Port(0x80, 0xF4);
+  opl_.Port(0x81, 0xF4);
 
   printf("OPAL SDL TEST \n");
 
@@ -204,11 +204,12 @@ int main(int argc, char const *argv[]) {
           handle_key_down(&e.key.keysym);
         }
         break;
-      case SDL_KEYUP:
+      case SDL_KEYUP: {
         printf("STOP NOTE\n");
         // note off in OPAL
-        opl_.Port(0xB0, 0x0);
-        break;
+        uint8_t stop = BitClr(breg, 5);
+        opl_.Port(OCTAVE_BASE_REG, stop);
+      } break;
       case SDL_QUIT:
         printf("exiting...\n");
         return 0;
